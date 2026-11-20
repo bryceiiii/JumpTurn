@@ -1,0 +1,20 @@
+{
+  "name": "JumpTurn.PlayModeTests",
+  "rootNamespace": "JumpTurn.Tests",
+  "references": [
+    "JumpTurn.Runtime",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
