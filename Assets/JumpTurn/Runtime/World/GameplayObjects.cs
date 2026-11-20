@@ -36,6 +36,78 @@ namespace JumpTurn
         }
     }
 
+    /// <summary>
+    /// 幽灵巡逻怪的表情表现：玩家接近时从行走循环切到狂暴循环。
+    /// 只做表现，不参与任何玩法判定。
+    /// </summary>
+    public sealed class GhostPatrolView : MonoBehaviour
+    {
+        private const float AlertRadius = 4.5f;
+
+        private SpriteAnimator2D _animator;
+        private SpriteRenderer _renderer;
+        private Transform _player;
+        private Sprite[] _calmFrames;
+        private Sprite[] _furyFrames;
+        private bool _alerted;
+        private float _lastX;
+        private bool _hasLastX;
+
+        public void Initialize(
+            SpriteRenderer renderer,
+            SpriteAnimator2D animator,
+            Transform player,
+            Sprite[] calmFrames,
+            Sprite[] furyFrames)
+        {
+            _renderer = renderer;
+            _animator = animator;
+            _player = player;
+            _calmFrames = calmFrames;
+            _furyFrames = furyFrames != null && furyFrames.Length > 0 ? furyFrames : calmFrames;
+        }
+
+        private void Update()
+        {
+            UpdateFacing();
+
+            if (_player == null || _animator == null)
+            {
+                return;
+            }
+
+            bool alerted = Vector3.SqrMagnitude(_player.position - transform.position) < AlertRadius * AlertRadius;
+            if (alerted == _alerted)
+            {
+                return;
+            }
+
+            _alerted = alerted;
+            _animator.Play(_alerted ? _furyFrames : _calmFrames, _alerted ? 14f : 8f);
+        }
+
+        /// <summary>幽灵素材原生朝左，按本帧位移方向决定是否镜像。</summary>
+        private void UpdateFacing()
+        {
+            float x = transform.position.x;
+            if (!_hasLastX)
+            {
+                _lastX = x;
+                _hasLastX = true;
+                return;
+            }
+
+            float delta = x - _lastX;
+            _lastX = x;
+            if (_renderer == null || Mathf.Abs(delta) < 0.0001f)
+            {
+                return;
+            }
+
+            _renderer.flipX = delta > 0f;
+        }
+    }
+
     public sealed class SkyShardPickup : MonoBehaviour
     {
         private Transform _visual;
@@ -182,19 +254,21 @@ namespace JumpTurn
     public sealed class FairyCompanion : MonoBehaviour
     {
         private Transform _target;
+        private PlayerController _owner;
         private SpriteRenderer _renderer;
         private float _seed;
 
         public void Initialize(Transform target)
         {
             _target = target;
+            _owner = target != null ? target.GetComponent<PlayerController>() : null;
             _seed = 2.4f;
             _renderer = gameObject.AddComponent<SpriteRenderer>();
             _renderer.sharedMaterial = RuntimeArt.MonoTintMaterial;
             _renderer.color = new Color(0.45f, 0.95f, 0.9f, 0.82f);
             _renderer.sortingOrder = 4;
             var animator = gameObject.AddComponent<SpriteAnimator2D>();
-            animator.Initialize(_renderer, RuntimeArt.GetBird(), 10f);
+            animator.Initialize(_renderer, RuntimeArt.GetFairy(), 10f);
         }
 
         private void LateUpdate()
@@ -206,7 +280,7 @@ namespace JumpTurn
 
             Vector3 desired = _target.position + new Vector3(0.9f + Mathf.Sin(Time.time * 2.4f + _seed) * 0.16f, 0.85f + Mathf.Sin(Time.time * 3.1f + _seed) * 0.18f, 0f);
             transform.position = Vector3.Lerp(transform.position, desired, 1f - Mathf.Exp(-8f * Time.deltaTime));
-            _renderer.flipX = _target.localScale.x < 0f;
+            _renderer.flipX = _owner != null && _owner.Facing > 0f;
         }
     }
 }

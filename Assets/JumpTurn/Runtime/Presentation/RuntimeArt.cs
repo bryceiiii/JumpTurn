@@ -7,6 +7,10 @@ namespace JumpTurn
     public static class RuntimeArt
     {
         private const float PixelsPerUnit = 16f;
+        // Ghost 素材是 32×32 单帧、32 像素放 1 个世界单位，与 16×16 的 Kenney 素材保持同样像素密度。
+        private const float GhostPixelsPerUnit = 32f;
+        /// <summary>幽灵画布 32×32 里只有约 21px 是本体（其余是留白），按这个系数放大才能和碰撞体大小对上。</summary>
+        public const float GhostContentScale = 1.6f;
         private static readonly Dictionary<string, Texture2D> Textures = new();
         private static readonly Dictionary<string, Sprite[]> Sheets = new();
         private static Sprite _whiteSprite;
@@ -15,45 +19,62 @@ namespace JumpTurn
         private static Sprite _grassTop;
         private static Sprite _dirtFill;
         private static Material _monoTintMaterial;
+        private static Material _spriteUnlitMaterial;
 
         public static Sprite WhiteSprite => _whiteSprite ??= BuildWhiteSprite();
         public static Sprite StarSprite => _starSprite ??= BuildStarSprite();
         public static Sprite GlowSprite => _glowSprite ??= BuildGlowSprite();
-        public static Sprite GrassTop => _grassTop ??= Slice(LoadTexture("Tilemap"), new Rect(240f, 128f, 16f, 16f));
-        public static Sprite DirtFill => _dirtFill ??= Slice(LoadTexture("Tilemap"), new Rect(160f, 128f, 16f, 16f));
+        public static Sprite GrassTop => _grassTop ??= Slice(LoadTexture("Kenney1Bit/Tilemap"), new Rect(240f, 128f, 16f, 16f));
+        public static Sprite DirtFill => _dirtFill ??= Slice(LoadTexture("Kenney1Bit/Tilemap"), new Rect(160f, 128f, 16f, 16f));
         public static Material MonoTintMaterial => _monoTintMaterial ??= CreateMonoMaterial();
+        /// <summary>保留素材原色的不受光精灵材质。工程走 URP 且场景没有 Light2D，用默认 Lit 材质会变全黑。</summary>
+        public static Material SpriteUnlitMaterial => _spriteUnlitMaterial ??= CreateSpriteUnlitMaterial();
 
         public static Sprite[] GetBunnyIdle()
         {
-            Sprite[] all = GetSheet("Character", 16, 16);
+            Sprite[] all = GetSheet("Kenney1Bit/Character", 16, 16);
             return new[] { all[0] };
         }
 
         public static Sprite[] GetBunnyRun()
         {
-            return GetSheet("Character", 16, 16);
+            return GetSheet("Kenney1Bit/Character", 16, 16);
         }
 
         public static Sprite[] GetBunnyJump()
         {
-            Sprite[] all = GetSheet("Character", 16, 16);
+            Sprite[] all = GetSheet("Kenney1Bit/Character", 16, 16);
             return new[] { all[Mathf.Min(3, all.Length - 1)] };
         }
 
         public static Sprite[] GetBunnyFall()
         {
-            Sprite[] all = GetSheet("Character", 16, 16);
+            Sprite[] all = GetSheet("Kenney1Bit/Character", 16, 16);
             return new[] { all[Mathf.Min(5, all.Length - 1)] };
         }
 
-        public static Sprite[] GetSlime()
+        /// <summary>跟随小精灵沿用的 1-bit Kenney 幽灵（3 帧）。</summary>
+        public static Sprite[] GetFairy()
         {
-            return GetSheet("Ghost", 16, 16);
+            return GetSheet("Kenney1Bit/Ghost", 16, 16);
         }
 
-        public static Sprite[] GetBird()
+        /// <summary>巡逻幽灵的常规行走循环（4 帧）。</summary>
+        public static Sprite[] GetGhostWalk()
         {
-            return GetSheet("Ghost", 16, 16);
+            return GetSheet("Ghost/GhostWalk", 32, 32, GhostPixelsPerUnit);
+        }
+
+        /// <summary>巡逻幽灵发现玩家时的狂暴循环（2 帧）。</summary>
+        public static Sprite[] GetGhostFury()
+        {
+            return GetSheet("Ghost/GhostFury", 32, 32, GhostPixelsPerUnit);
+        }
+
+        /// <summary>受惊幽灵单帧，用作跟随小精灵。</summary>
+        public static Sprite[] GetGhostShocked()
+        {
+            return GetSheet("Ghost/GhostShocked", 32, 32, GhostPixelsPerUnit);
         }
 
         public static Sprite[] GetSaw()
@@ -68,7 +89,7 @@ namespace JumpTurn
 
         public static Sprite GetExit()
         {
-            return Slice(LoadTexture("Tilemap"), new Rect(224f, 224f, 16f, 16f));
+            return Slice(LoadTexture("Kenney1Bit/Tilemap"), new Rect(224f, 224f, 16f, 16f));
         }
 
         public static Sprite CreateBackdrop(RoomPalette palette, int seed)
@@ -131,48 +152,59 @@ namespace JumpTurn
             }
         }
 
-        private static Sprite[] GetSheet(string resourceName, int frameWidth, int frameHeight)
+        private static Sprite[] GetSheet(string resourcePath, int frameWidth, int frameHeight)
         {
-            if (Sheets.TryGetValue(resourceName, out Sprite[] cached))
+            return GetSheet(resourcePath, frameWidth, frameHeight, PixelsPerUnit);
+        }
+
+        private static Sprite[] GetSheet(string resourcePath, int frameWidth, int frameHeight, float pixelsPerUnit)
+        {
+            string cacheKey = resourcePath + "@" + pixelsPerUnit.ToString("0.##");
+            if (Sheets.TryGetValue(cacheKey, out Sprite[] cached))
             {
                 return cached;
             }
 
-            Texture2D texture = LoadTexture(resourceName);
+            Texture2D texture = LoadTexture(resourcePath);
             int count = Mathf.Max(1, texture.width / frameWidth);
             var frames = new Sprite[count];
             for (int i = 0; i < count; i++)
             {
-                frames[i] = Slice(texture, new Rect(i * frameWidth, texture.height - frameHeight, frameWidth, frameHeight));
+                frames[i] = Slice(texture, new Rect(i * frameWidth, texture.height - frameHeight, frameWidth, frameHeight), pixelsPerUnit);
             }
 
-            Sheets[resourceName] = frames;
+            Sheets[cacheKey] = frames;
             return frames;
         }
 
-        private static Texture2D LoadTexture(string resourceName)
+        private static Texture2D LoadTexture(string resourcePath)
         {
-            if (Textures.TryGetValue(resourceName, out Texture2D cached))
+            if (Textures.TryGetValue(resourcePath, out Texture2D cached))
             {
                 return cached;
             }
 
-            var texture = Resources.Load<Texture2D>("Kenney1Bit/" + resourceName);
+            var texture = Resources.Load<Texture2D>(resourcePath);
             if (texture == null)
             {
-                texture = BuildFallbackTexture(resourceName);
+                texture = BuildFallbackTexture(resourcePath);
             }
 
             texture.filterMode = FilterMode.Point;
-            texture.wrapMode = resourceName == "Tilemap" ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+            texture.wrapMode = resourcePath.EndsWith("Tilemap") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
             texture.anisoLevel = 0;
-            Textures[resourceName] = texture;
+            Textures[resourcePath] = texture;
             return texture;
         }
 
         private static Sprite Slice(Texture2D texture, Rect rect)
         {
-            return Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), PixelsPerUnit, 0, SpriteMeshType.FullRect);
+            return Slice(texture, rect, PixelsPerUnit);
+        }
+
+        private static Sprite Slice(Texture2D texture, Rect rect, float pixelsPerUnit)
+        {
+            return Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), pixelsPerUnit, 0, SpriteMeshType.FullRect);
         }
 
         private static Texture2D BuildFallbackTexture(string name)
@@ -306,6 +338,17 @@ namespace JumpTurn
             }
 
             return shader != null ? new Material(shader) { name = "JumpTurn MonoTint" } : null;
+        }
+
+        private static Material CreateSpriteUnlitMaterial()
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+            if (shader == null)
+            {
+                shader = Shader.Find("Sprites/Default");
+            }
+
+            return shader != null ? new Material(shader) { name = "JumpTurn Sprite Unlit" } : null;
         }
     }
 }

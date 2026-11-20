@@ -51,7 +51,8 @@ namespace JumpTurn.Editor
 
         private static void ConfigureTextureImports()
         {
-            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/JumpTurn/Resources/Kenney1Bit" });
+            string[] folders = { "Assets/JumpTurn/Resources/Kenney1Bit", "Assets/JumpTurn/Resources/Ghost" };
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", folders);
             foreach (string guid in guids)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
@@ -62,7 +63,7 @@ namespace JumpTurn.Editor
 
                 importer.textureType = TextureImporterType.Default;
                 importer.filterMode = FilterMode.Point;
-                importer.wrapMode = path.EndsWith("/Terrain.png") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+                importer.wrapMode = path.EndsWith("/Tilemap.png") ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
                 importer.mipmapEnabled = false;
                 importer.alphaIsTransparency = true;
                 importer.textureCompression = TextureImporterCompression.Uncompressed;

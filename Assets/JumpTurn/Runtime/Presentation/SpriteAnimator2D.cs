@@ -30,6 +30,7 @@ namespace JumpTurn
             _renderer.sprite = _frames[0];
         }
 
+        /// <summary>素材原生朝右，所以只有向左移动时才需要水平镜像。</summary>
         public void SetFacing(float horizontalDirection)
         {
             if (_renderer == null || Mathf.Abs(horizontalDirection) < 0.01f)
@@ -37,14 +38,14 @@ namespace JumpTurn
                 return;
             }
 
-            _renderer.flipX = horizontalDirection > 0f;
+            _renderer.flipX = horizontalDirection < 0f;
         }
 
         public void SetFacingLeft(bool left)
         {
             if (_renderer != null)
             {
-                _renderer.flipX = !left;
+                _renderer.flipX = left;
             }
         }
 

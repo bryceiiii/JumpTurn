@@ -36,7 +36,7 @@ namespace JumpTurn
 
             foreach (HazardSpec hazard in room.hazards)
             {
-                BuildHazard(rotatingStage.transform, hazard);
+                BuildHazard(rotatingStage.transform, hazard, player != null ? player.transform : null);
             }
 
             foreach (ShardSpec shard in room.shards)
@@ -113,7 +113,7 @@ namespace JumpTurn
             }
         }
 
-        private static void BuildHazard(Transform parent, HazardSpec spec)
+        private static void BuildHazard(Transform parent, HazardSpec spec, Transform player)
         {
             var hazardObject = new GameObject(spec.kind.ToString());
             hazardObject.transform.SetParent(parent, false);
@@ -124,7 +124,6 @@ namespace JumpTurn
             visual.transform.SetParent(hazardObject.transform, false);
             SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = 3;
-            renderer.sharedMaterial = RuntimeArt.MonoTintMaterial;
             var collider = hazardObject.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
             hazardObject.AddComponent<Hazard2D>();
@@ -132,13 +131,20 @@ namespace JumpTurn
             switch (spec.kind)
             {
                 case HazardKind.Patrol:
-                    renderer.sprite = RuntimeArt.GetSlime()[0];
+                    // 幽灵素材自带配色：走 Unlit 原色材质，不能再用 MonoTint（会被压成单色剪影）。
+                    renderer.sharedMaterial = RuntimeArt.SpriteUnlitMaterial;
+                    Sprite[] walk = RuntimeArt.GetGhostWalk();
+                    renderer.sprite = walk[0];
+                    renderer.color = Color.white;
+                    visual.transform.localScale = Vector3.one * Mathf.Max(0.5f, spec.size.y * RuntimeArt.GhostContentScale);
                     collider.size = spec.size;
                     var animator = hazardObject.AddComponent<SpriteAnimator2D>();
-                    animator.Initialize(renderer, RuntimeArt.GetSlime(), 9f);
+                    animator.Initialize(renderer, walk, 8f);
                     hazardObject.AddComponent<MovingHazard>().Configure(spec.travel, spec.speed, false);
+                    hazardObject.AddComponent<GhostPatrolView>().Initialize(renderer, animator, player, walk, RuntimeArt.GetGhostFury());
                     break;
                 case HazardKind.Saw:
+                    renderer.sharedMaterial = RuntimeArt.MonoTintMaterial;
                     renderer.sprite = RuntimeArt.GetSaw()[0];
                     renderer.color = new Color(1f, 0.34f, 0.3f, 1f);
                     collider.size = spec.size;
@@ -147,6 +153,7 @@ namespace JumpTurn
                     hazardObject.AddComponent<MovingHazard>().Configure(spec.travel, spec.speed, true);
                     break;
                 default:
+                    renderer.sharedMaterial = RuntimeArt.MonoTintMaterial;
                     renderer.sprite = RuntimeArt.GetSpikes();
                     renderer.color = new Color(1f, 0.38f, 0.32f, 1f);
                     renderer.drawMode = SpriteDrawMode.Simple;

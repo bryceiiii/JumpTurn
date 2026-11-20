@@ -100,7 +100,7 @@ namespace JumpTurn
                 hazards = new[]
                 {
                     new HazardSpec(HazardKind.Spikes, 0.7f, -1.45f, 1f, 0.35f),
-                    new HazardSpec(HazardKind.Patrol, 7.8f, -3.1f, 1.7f, 0.8f, 3.4f, 0f, 1.5f)
+                    new HazardSpec(HazardKind.Patrol, 7.8f, -3.1f, 1.15f, 1f, 3.4f, 0f, 1.5f)
                 },
                 shards = new[]
                 {

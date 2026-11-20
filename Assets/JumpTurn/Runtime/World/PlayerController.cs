@@ -27,6 +27,8 @@ namespace JumpTurn
 
         public bool IsGrounded { get; private set; }
         public Rigidbody2D Body => _body;
+        /// <summary>1 表示朝右，-1 表示朝左。</summary>
+        public float Facing => _facing;
 
         private enum AnimationState
         {
@@ -58,7 +60,8 @@ namespace JumpTurn
             visual.transform.localPosition = new Vector3(0f, -0.12f, 0f);
             visual.transform.localScale = new Vector3(1.9f, 1.9f, 1f);
             _renderer = visual.AddComponent<SpriteRenderer>();
-            _renderer.sharedMaterial = RuntimeArt.MonoTintMaterial;
+            // 走本色：MonoTint 只取 alpha，会把这套 1-bit 素材的黑描边和眼睛一起压成纯白剪影。
+            _renderer.sharedMaterial = RuntimeArt.SpriteUnlitMaterial;
             _renderer.sortingOrder = 6;
             _animator = gameObject.AddComponent<SpriteAnimator2D>();
             _animator.Initialize(_renderer, RuntimeArt.GetBunnyIdle(), 9f);
